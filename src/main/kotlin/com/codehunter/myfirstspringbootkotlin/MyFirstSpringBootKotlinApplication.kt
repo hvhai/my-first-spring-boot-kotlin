@@ -2,16 +2,12 @@ package com.codehunter.myfirstspringbootkotlin
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
-import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.data.annotation.Id
+import org.springframework.data.relational.core.mapping.Table
+import org.springframework.data.repository.CrudRepository
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
-import java.util.UUID
+import org.springframework.web.bind.annotation.*
+import java.util.*
 
 @SpringBootApplication
 class MyFirstSpringBootKotlinApplication
@@ -36,27 +32,21 @@ class MessageController(val messageService: MessageService) {
 
 }
 
-data class Message(val id: String?, val text: String)
+@Table("MESSAGES")
+data class Message(@Id val id: String?, val text: String)
 
+interface MessageRepository : CrudRepository<Message, String>
 
 @Service
-class MessageService(val db: JdbcTemplate) {
-    fun findMessages(): List<Message> = db.query("select * from messages") { response, _ ->
-        Message(response.getString("id"), response.getString("text"))
-    }
+class MessageService(val messageRepository: MessageRepository) {
+    fun findMessages(): List<Message> = messageRepository.findAll().toList()
 
-    fun save(message: Message) {
-        val id = message.id ?: UUID.randomUUID().toString()
-        db.update(
-            "insert into messages values (?, ?)", id, message.text
-        )
-    }
+    fun save(message: Message) = messageRepository.save(message)
 
-    fun findById(id: String): List<Message> = db.query(
-        "select * from messages where id = ?",
-        { response, _ ->
-            Message(response.getString("id"), response.getString("text"))
-        },
-        id
-    )
+//    fun findById(id: String): List<Message> =
+//        if (messageRepository.findById(id).isPresent) listOf(messageRepository.findById(id).get()) else emptyList()
+    fun findById(id: String): List<Message> = messageRepository.findById(id).toList()
+
+    fun <T : Any> Optional<out T>.toList(): List<T> =
+        if (isPresent) listOf(get()) else emptyList()
 }
